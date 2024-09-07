@@ -1,0 +1,13 @@
+{
+	"folders":
+	[
+		{
+			"path": "src"
+		},
+		{
+			"name": "settings",
+			"path": ".",
+			"folder_exclude_patterns": ["*"]
+		}
+	]
+}
