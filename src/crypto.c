@@ -1,6 +1,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define BLOCK_SIZE 128
+
+char* encode(char* buffer, size_t len) {
+	for(size_t i = 0; i<len; i++) {
+		buffer[i] = buffer[i] ^ 0x20;
+	}
+
+	return buffer;
+}
+
 int main(int argc, char* argv[]) {
 	if (argc != 3) {
 		puts("expected 2 parametters");
@@ -21,11 +31,10 @@ int main(int argc, char* argv[]) {
 	}
 
 	// read write
-	char buffer[128];
-	size_t read = fread(buffer, 1, 128, input_file);
-	while (read > 0) {
-		fwrite(buffer, 1, read, output_file);
-		read = fread(buffer, 1, 128, input_file);
+	char buffer[BLOCK_SIZE];
+	size_t read;
+	while ((read = fread(buffer, 1, BLOCK_SIZE, input_file)) > 0) {
+		fwrite(encode(buffer, read), 1, read, output_file);
 	}
 
 	// close files
