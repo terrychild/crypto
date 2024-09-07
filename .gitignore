@@ -1,2 +1,4 @@
 build
 *.sublime-workspace
+input.txt
+output.txt

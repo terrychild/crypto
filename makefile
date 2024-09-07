@@ -1,6 +1,6 @@
 # config
 TARGET := crypto
-RUN_ARGS :=
+RUN_ARGS := input.txt output.txt
 
 COMP_ARGS := -Wall -Wextra -std=c17 -pedantic
 
