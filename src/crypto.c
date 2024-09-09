@@ -49,13 +49,11 @@ char from_hex_char(char nibble) {
 }
 
 char* from_hex(char* hex, size_t len) {
-	char* bytes = malloc(len+1);
+	char* bytes = malloc(len);
 
 	for (size_t i=0; i<len; i++) {
 		bytes[i] = (from_hex_char(hex[i*2]) << 4) + from_hex_char(hex[i*2 + 1]);
 	}
-
-	bytes[len] = '\0';
 
 	return bytes;
 }
@@ -66,14 +64,21 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	// validate action
 	if (argv[1][0]!='e' && argv[1][0]!='d') {
 		printf("unknown action \"%s\"\n", argv[1]);
 		return EXIT_FAILURE;
 	}
 
-	char* key = from_hex(argv[2], strlen(argv[2])/2);
-	printf("key: \"%s\"\n", key);
+	// validate key
+	size_t key_len = strlen(argv[2])/2;
+	if (key_len!=16 && key_len!=24 && key_len!=32) {
+		puts("invalid key length");
+		return EXIT_FAILURE;
+	}
+	char* key = from_hex(argv[2], key_len);
 
+	// do input things
 	char* input;
 	size_t len;
 	if (argc == 4) {
