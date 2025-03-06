@@ -1,8 +1,11 @@
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
-#include <string.h>
+#include <limits.h>
+/*#include <string.h>*/
 
-char to_hex_char(unsigned char nibble) {
+char to_hex_char(uint8_t nibble) {
 	if (nibble < 10) {
 		return nibble + 48;
 	} else {
@@ -10,18 +13,52 @@ char to_hex_char(unsigned char nibble) {
 	}
 }
 
-void print_hex(unsigned char byte) {
+void print_hex(uint8_t byte) {
 	printf("%c%c", to_hex_char((byte & 0xF0) >> 4), to_hex_char(byte & 0x0F));
 }
-void print_bin(unsigned char byte) {
+void print_bin(uint8_t byte) {
 	for (int i=0; i<8; i++) {
 		printf("%c", byte & 0x80 ? '1' : '0');
 		byte <<= 1;
 	}
 }
+void print_poly(uint8_t byte) {
+	bool first = true;
+	for (int i=7; i>=0; i--) {
+		if (byte & 0x80) {
+			if (first) {
+				first = false;
+			} else {
+				printf("+");
+			}
 
-unsigned char aes_mul(unsigned char a, unsigned char b) {
-	unsigned char result = 0;
+			switch(i) {				
+				case 7: printf("x\u2077"); break;
+				case 6: printf("x\u2076"); break;
+				case 5: printf("x\u2075"); break;
+				case 4: printf("x\u2074"); break;
+				case 3: printf("x\u00B3"); break;
+				case 2: printf("x\u00B2"); break;
+				case 1: printf("x"); break;
+				case 0: printf("1"); break;
+			}
+		}
+		byte <<= 1;
+	}
+}
+
+uint8_t rotl8(uint8_t value, unsigned int count) {
+	const unsigned int mask = CHAR_BIT * sizeof(value) - 1;
+	count &= mask;
+	return (value << count) | (value >> (-count & mask));
+}
+
+// Perform AES multiplication, i.e. polynomial multiplication in the field
+// GF(256) with the irreducible polynomial x^8 + x^4 + x^3 + x + 1.  Designed
+// to work with 8 bit numbers despite the irreducible polynomial requiring 9
+// bits.
+uint8_t aes_mul(uint8_t a, uint8_t b) {
+	uint8_t result = 0;
 
 	for (int i=0; i<8; i++) {
 		if (b & 0x01) {
@@ -34,159 +71,71 @@ unsigned char aes_mul(unsigned char a, unsigned char b) {
 	return result;
 }
 
-/*unsigned char aes_div(unsigned char a, unsigned char b, unsigned char* r) {
-
-}*/
-
-int gcd(int a, int b) {
-	if (b == 0) return a;
-	return gcd(b, a % b);
-}
-
-struct eea_terms {
-	int r;
-	int s;
-	int t;
-};
-
-struct eea_terms eea_recurse(struct eea_terms i2, struct eea_terms i1) {
-	
-	if (i1.r==0) return i2;
-
-	int q = i2.r / i1.r;
-	return eea_recurse(i1, (struct eea_terms) {
-		.r = i2.r % i1.r,
-		.s = i2.s - q*i1.s,
-		.t = i2.t - q*i1.t
-	});
-}
-
-struct eea_terms eea(int r0, int r1) {
-	return eea_recurse((struct eea_terms) {r0, 1, 0}, (struct eea_terms) {r1, 0, 1});
-}
-
-int inverse(int a, int mod) {
-	struct eea_terms result = eea(mod, a);
-
-	return result.t<0 ? result.t+mod : result.t;
-}
-
-unsigned int gf2_mul(unsigned int a, unsigned int b) {
-	unsigned int result = 0;
-
-	size_t len = sizeof(int)*8;
-	for (size_t i=0; i<len; i++) {
-		if (b & 0x01) {
-			result ^= a;
-		}
-		a = a << 1;
-		b >>= 1;
-	}
-
-	return result;
-}
-
-unsigned int gf2_div(unsigned int a, unsigned int b, unsigned int* r) {
+// Perform polynomial division with 8 bit vectors.  
+uint8_t aes_div(uint8_t a, uint8_t b, uint8_t* r) {
 	if (b>a) {
 		*r = a;
 		return 0;
 	}
 
-	unsigned int mask = 1 << ((sizeof(int)*8) - 1);
+	uint8_t mask = 0x80;
 	while (mask && !(mask & a)) {
 		mask >>= 1;
 	}
-	unsigned int mag = 0;
+	uint8_t mag = 0;
 	while (mask && !(mask & b)) {
 		mask >>= 1;
 		mag++;
 	}
 
-	return (1 << mag) ^ gf2_div(a ^ (b << mag), b, r);
+	return (1 << mag) ^ aes_div(a ^ (b << mag), b, r);
+}
+// Perform polynomial AES irreducible polynomial (which would require 9 bits)
+// with an 8 bit vector.
+uint8_t aes_div_irreducible(uint8_t b, uint8_t* r) {
+	uint8_t mask = 0x80;
+	uint8_t mag = 1;
+	while (mask && !(mask & b)) {
+		mask >>= 1;
+		mag++;
+	}
+
+	return (1 << mag) ^ aes_div(0x1b ^ (b << mag), b, r);
 }
 
-struct eea_terms gf2_eea_recurse(struct eea_terms i2, struct eea_terms i1) {
-	
-	if (i1.r==0) return i2;
+// Compute the AES multiplicative inverse using the Extended Euclidean Algorithm 
+uint8_t aes_inverse(uint8_t r) {
+	uint8_t old_t = 0;
+	uint8_t t = 1;
 
-	unsigned int r;
-	unsigned int q = gf2_div(i2.r, i1.r, &r);
-	return gf2_eea_recurse(i1, (struct eea_terms) {
-		.r = r,
-		.s = i2.s ^ gf2_mul(q, i1.s),
-		.t = i2.t ^ gf2_mul(q, i1.t)
-	});
-}
+	uint8_t new_r;
+	uint8_t q = aes_div_irreducible(r, &new_r);
 
-struct eea_terms gf2_eea(unsigned int r0, unsigned int r1) {
-	return gf2_eea_recurse((struct eea_terms) {r0, 1, 0}, (struct eea_terms) {r1, 0, 1});
-}
+	while (new_r != 0) {		
+		uint8_t new_t = old_t ^ aes_mul(q, t);
+		old_t = t;
+		t = new_t;
 
-unsigned int gf2_inverse(unsigned int a, unsigned int mod) {
-	struct eea_terms result = gf2_eea(mod, a);
+		uint8_t old_r = r;
+		r = new_r;
+		q = aes_div(old_r, r, &new_r);
+	}
 
-	return result.t;
-}
-
-/*int gf2_eea(int a, int b, int* s, int* t) {
-	*s = 1;
-	*t = 0;
-
-	if (b == 0) return a;
-
-	int r2 = a;
-	int r1 = b;
-	int s1 = 0;
-	int t1 = 1;
-
-	do {
-		int r0;
-		int q1 = gf2_div(r2, r1, &r0);
-
-		r2 = r1;
-		r1 = r0;
-
-		int s0 = (*s) ^ gf2_mul(q1, s1);
-		*s = s1;
-		s1 = s0;
-
-		int t0 = (*t) ^ gf2_mul(q1, t1);
-		*t = t1;
-		t1 = t0;
-	} while (r1 != 0);
-
-	return r2;
-}
-
-int gf2_inverse(int a, int mod) {
-	int s, t;
-	gf2_eea(mod, a, &s, &t);
-
-	//return (t<0 ? t+mod : t) % mod;
 	return t;
-}*/
+}
 
-/*unsigned char poly_gcd(unsigned char a, unsigned char b) {
-	if (b==0) return a;
-	if (b>a) return gcd(b, a);
-	return poly_gcd(b, )
-}*/
+// compute the AES S-box values
+void aes_compute_sbox(uint8_t forward[256], uint8_t backward[256]) {
+	uint8_t value = 0;
 
-void compute_sbox() {
-	unsigned char p = 1;
-	unsigned char q = 1;
+	forward[0] = 0x63;
+	backward[0x63] = 0;
 
 	do {
-		p = p ^ (p << 1) ^ (p & 0x80 ? 0x1b : 0);
-		q = aes_mul(q, 3);
-
-		print_hex(p);
-		printf(" ");
-		print_hex(q);
-		printf(" ");
-		print_bin(q);
-		printf("\n");
-	} while (p != 1);
+		uint8_t inverse = aes_inverse(++value);
+		forward[value] = inverse ^ rotl8(inverse, 1) ^ rotl8(inverse, 2) ^ rotl8(inverse, 3) ^ rotl8(inverse, 4) ^ 0x63;
+		backward[forward[value]] = value;
+	} while (value != 255);
 }
 
 int main(/*int argc, char* argv[]*/) {
@@ -222,36 +171,24 @@ int main(/*int argc, char* argv[]*/) {
 
 	puts(input);*/
 
-	//compute_sbox();
+	uint8_t aes_forward_sbox[256];
+	uint8_t aes_backward_sbox[256];
+	aes_compute_sbox(aes_forward_sbox, aes_backward_sbox);
 
-	/*unsigned char max = 6;
-	for (unsigned char i=0; i<max; i++) {
-		unsigned char ai = max-i;
-		unsigned char mi = gcd(max, i);
-		printf("%d %d %d %d %d\n", i, ai, (i+ai) % max, mi, (i*mi) % max);
-	}*/
+	for (int i=0; i<16; i++) {
+		for (int j=0; j<16; j++) {
+			print_hex(aes_forward_sbox[i*16 + j]);
+			printf(" ");
+		}
+		printf("\n");
+	}
 
-	//printf("%d\n", gcd(25, 15));
-	//struct eea_terms eear = eea(973, 301);
-	//printf("%d x %d + %d x %d = %d\n", eear.s, 973, eear.t, 301, eear.r);
-
-	/*int max = 7;
-	for (int i=0; i<max; i++) {
-		struct eea_terms eear = eea(max, i);
-		printf("%d:  r =%2d, s =%2d, t =%2d, inverse =%2d\n", i, eear.r, eear.s, eear.t, inverse(i, max));
-	}*/
-
-	unsigned int r;
-	for(unsigned int i=1; i<8; i++) {
-		print_bin(0x0b);
-		printf(" / ");
-		print_bin(i);
-		printf(" => ");
-		print_bin(gf2_div(0x0b, i, &r));
-		printf(" r ");
-		print_bin(r);
-		printf(", inverse =  ");
-		print_bin(gf2_inverse(i, 0x0b));
+	printf("\n");
+	for (int i=0; i<16; i++) {
+		for (int j=0; j<16; j++) {
+			print_hex(aes_backward_sbox[i*16 + j]);
+			printf(" ");
+		}
 		printf("\n");
 	}
 
