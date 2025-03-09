@@ -92,8 +92,9 @@ uint8_t aes_mul(uint8_t a, uint8_t b) {
 	return result;
 }
 
-unsigned int gf2_div(unsigned int a, unsigned int b, unsigned int* r) {
-	unsigned int mask = 1 << ((sizeof(unsigned int)*8) - 1);
+// Perform polynomial division with 8 bit vectors.  
+uint8_t aes_div(uint8_t a, uint8_t b, uint8_t* r) {
+	uint8_t mask = 0x80;
 	while (mask && !(mask & a) && !(mask & b)) {
 		mask >>= 1;
 	}
@@ -103,34 +104,46 @@ unsigned int gf2_div(unsigned int a, unsigned int b, unsigned int* r) {
 		return 0;
 	}
 	
-	unsigned int mag = 0;
+	uint8_t mag = 0;
 	while (mask && !(mask & b)) {
 		mask >>= 1;
 		mag++;
 	}
 
-	return (1 << mag) ^ gf2_div(a ^ (b << mag), b, r);
+	return (1 << mag) ^ aes_div(a ^ (b << mag), b, r);
+}
+// Perform polynomial AES irreducible polynomial (which would require 9 bits)
+// with an 8 bit vector.
+uint8_t aes_div_irreducible(uint8_t b, uint8_t* r) {
+	uint8_t mask = 0x80;
+	uint8_t mag = 1;
+	while (mask && !(mask & b)) {
+		mask >>= 1;
+		mag++;
+	}
+
+	return (1 << mag) ^ aes_div(0x1b ^ (b << mag), b, r);
 }
 
 // Compute the AES multiplicative inverse using the Extended Euclidean Algorithm 
 uint8_t aes_inverse(uint8_t r) {
-	unsigned int old_t = 0;
-	unsigned int t = 1;
+	uint8_t old_t = 0;
+	uint8_t t = 1;
 
-	unsigned int new_r;
-	unsigned int q = gf2_div(0x11b, r, &new_r);
+	uint8_t new_r;
+	uint8_t q = aes_div_irreducible(r, &new_r);
 
 	while (new_r != 0) {		
-		unsigned int new_t = old_t ^ aes_mul(q, t);
+		uint8_t new_t = old_t ^ aes_mul(q, t);
 		old_t = t;
 		t = new_t;
 
-		unsigned int old_r = r;
+		uint8_t old_r = r;
 		r = new_r;
-		q = gf2_div(old_r, r, &new_r);
+		q = aes_div(old_r, r, &new_r);
 	}
 
-	return (uint8_t)t;
+	return t;
 }
 
 // compute the AES S-box values
@@ -150,10 +163,10 @@ void aes_compute_sbox(uint8_t forward[256], uint8_t backward[256]) {
 void aes_compute_rc(uint8_t rc[11]) {
 	rc[0] = 0;
 	
+	uint8_t a = 1;
 	for (size_t i=1; i<11; i++) {
-		unsigned int r;
-		gf2_div(1 << (i-1), 0x11b, &r);
-		rc[i] = (uint8_t)r;
+		rc[i] = a;
+		a = (a << 1) ^ (a & 0x80 ? 0x1b : 0);
 	}
 }
 
@@ -214,19 +227,19 @@ int main(int argc, char* argv[]) {
 	// generate sboxs
 	aes_compute_sbox(aes_forward_sbox, aes_backward_sbox);
 
-	/*for (int i=0; i<16; i++) {
+	for (int i=0; i<16; i++) {
 		for (int j=0; j<16; j++) {
 			printf("%02x ", aes_forward_sbox[i*16 + j]);
 		}
 		printf("\n");
-	}*/
+	}
 
 	// generate round coefficients
 	aes_compute_rc(aes_rc);
 
-	/*for (int i=0; i<11; i++) {
+	for (int i=0; i<11; i++) {
 		printf("%2d: %02x\n", i, aes_rc[i]);
-	}*/
+	}
 
 	// expand key
 	int rounds = key_len==128 ? 10 : key_len==192 ? 12 : 14;
