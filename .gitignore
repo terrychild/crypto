@@ -1,4 +1,5 @@
 build
 *.sublime-workspace
-input.txt
-output.txt
+source
+cipher
+plain
