@@ -8,9 +8,9 @@ void* allocate(void* data, size_t size);
 int arg(int argc, char* argv[], const char* name);
 
 void rhex8(uint8_t* dest, char* source, size_t len);
-void rhex64(uint64_t* dest, char* source, size_t len);
+void rhex64_be(uint64_t* dest, char* source, size_t len);
 #define rhex(dest, source, len) _Generic((dest), \
-		uint64_t*: rhex64, \
+		uint64_t*: rhex64_be, \
 		default: rhex8 \
 	)(dest, source, len)
 

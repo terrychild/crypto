@@ -45,36 +45,25 @@ void rhex8(uint8_t* dest, char* source, size_t len) {
 	}
 }
 
-void rhex64(uint64_t* dest, char* source, size_t len) {
-	size_t desti = 0;
+static void rhex64(uint64_t* dest, size_t desti, int destd, char* source, size_t len) {
 	size_t mod = ((len % 8) - 1) % 8;
-	printf("len: %ld, break on: %ld\n", len, mod);
 	uint64_t value=0;
 	for (size_t i=0; i<len; i++) {
 		value <<= 8;
 		value += (rhex_char(source[i*2]) << 4) + rhex_char(source[i*2 + 1]);
-		printf("i: %ld, i%8: %ld, dest: %ld, value: %016lx\n", i, i%8, desti, value);
 		if (i % 8 == mod) {
-			dest[desti++] = value;
+			dest[desti] = value;
+			desti += destd;
 			value = 0;
 		}
 	}
 }
-
+void rhex64_be(uint64_t* dest, char* source, size_t len) {
+	rhex64(dest, 0, 1, source, len);
+}
 void rhex64_le(uint64_t* dest, char* source, size_t len) {
-	size_t desti = len/8;
-	size_t mod = ((len % 8) - 1) % 8;
-	printf("len: %ld, break on: %ld\n", len, mod);
-	uint64_t value=0;
-	for (size_t i=0; i<len; i++) {
-		value <<= 8;
-		value += (rhex_char(source[i*2]) << 4) + rhex_char(source[i*2 + 1]);
-		printf("i: %ld, i%8: %ld, dest: %ld, value: %016lx\n", i, i%8, desti, value);
-		if (i % 8 == mod) {
-			dest[desti--] = value;
-			value = 0;
-		}
-	}
+	printf("len: %ld, start: %ld\n", len, ((len+7)/8)-1);
+	rhex64(dest, ((len+7)/8)-1, -1, source, len);
 }
 
 bool rbit(unsigned int value, unsigned int bit) {
