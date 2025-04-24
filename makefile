@@ -1,6 +1,6 @@
 # config
 TARGET := crypto
-RUN_ARGS := dec-aes-cbc --key=30313233343536373839616263646566 --iv=000102030405060708090a0b0c0d0e0f --fin=cipher
+RUN_ARGS := test
 
 COMP_ARGS := -Wall -Wextra -std=c23 -pedantic
 
