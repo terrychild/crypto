@@ -6,15 +6,19 @@
 
 typedef struct {
 	size_t size;
-	size_t length;
-	uint64_t* data;
+	uint64_t* limbs;
 } BigInt;
 
 BigInt* bi_new(size_t size);
+BigInt* bi_from_int(uint64_t i);
+BigInt* bi_from_hex(char* str);
+
+void bi_normalise(BigInt* bi);
+
 void bi_free(BigInt* bi);
 
 void bi_dump(BigInt* bi);
 
-void bi_from_hex(BigInt* bi, char* str);
+BigInt* bi_add(BigInt* dest, BigInt* a, BigInt* b);
 
 #endif

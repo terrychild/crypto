@@ -7,17 +7,9 @@
 void* allocate(void* data, size_t size);
 int arg(int argc, char* argv[], const char* name);
 
-void rhex8(uint8_t* dest, char* source, size_t len);
-void rhex64_be(uint64_t* dest, char* source, size_t len);
-#define rhex(dest, source, len) _Generic((dest), \
-		uint64_t*: rhex64_be, \
-		default: rhex8 \
-	)(dest, source, len)
-
-void rhex64_le(uint64_t* dest, char* source, size_t len);
-#define rhex_le(dest, source, len) _Generic((dest), \
-		uint64_t*: rhex64_le \
-	)(dest, source, len)
+char read_hex_char(char nibble);
+void read_hex_be(uint8_t* dest, char* source, size_t len);
+void read_hex_le(uint8_t* dest, char* source, size_t len);
 
 uint8_t rbit(unsigned int value, unsigned int bit);
 

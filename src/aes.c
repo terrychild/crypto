@@ -393,7 +393,7 @@ int aes(bool enc, const char* mode, int argc, char* argv[]) {
 
 	uint8_t* initial_key = allocate(NULL, sizeof(*initial_key) * key_len / 2);
 	uint8_t* key = allocate(NULL, sizeof(*key) * total_key_words * 4);
-	rhex(initial_key, argv[key_arg]+6, key_len / 2);
+	read_hex_be(initial_key, argv[key_arg]+6, key_len);
 	expand_key(key, initial_key, initial_key_words, total_key_words);
 		
 	if (debug) {
@@ -435,7 +435,7 @@ int aes(bool enc, const char* mode, int argc, char* argv[]) {
 		}
 
 		iv = allocate(NULL, sizeof(*iv) * 16);
-		rhex(iv, argv[iv_arg]+5, 16);
+		read_hex_be(iv, argv[iv_arg]+5, 32);
 	}
 
 	// open files

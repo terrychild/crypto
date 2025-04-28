@@ -23,7 +23,7 @@ int arg(int argc, char* argv[], const char* name) {
 	return -1;
 }
 
-static char rhex_char(char nibble) {
+char read_hex_char(char nibble) {
 	char value;
 	if (nibble >= 'a') {
 		value = nibble - 'a' + 10;
@@ -39,31 +39,25 @@ static char rhex_char(char nibble) {
 	return value;
 }
 
-void rhex8(uint8_t* dest, char* source, size_t len) {
+static void read_hex(uint8_t* dest, size_t dest_index, int dest_delta, char* source, size_t len) {
+	size_t mod = (len - 1) % 2;
+	uint8_t value=0;
 	for (size_t i=0; i<len; i++) {
-		dest[i] = (rhex_char(source[i*2]) << 4) + rhex_char(source[i*2 + 1]);
-	}
-}
-
-static void rhex64(uint64_t* dest, size_t desti, int destd, char* source, size_t len) {
-	size_t mod = ((len % 8) - 1) % 8;
-	uint64_t value=0;
-	for (size_t i=0; i<len; i++) {
-		value <<= 8;
-		value += (rhex_char(source[i*2]) << 4) + rhex_char(source[i*2 + 1]);
-		if (i % 8 == mod) {
-			dest[desti] = value;
-			desti += destd;
+		value <<= 4;
+		value += read_hex_char(source[i]);
+		if (i % 2 == mod) {
+			dest[dest_index] = value;
+			dest_index += dest_delta;
 			value = 0;
 		}
 	}
 }
-void rhex64_be(uint64_t* dest, char* source, size_t len) {
-	rhex64(dest, 0, 1, source, len);
+
+void read_hex_be(uint8_t* dest, char* source, size_t len) {
+	read_hex(dest, 0, 1, source, len);
 }
-void rhex64_le(uint64_t* dest, char* source, size_t len) {
-	printf("len: %ld, start: %ld\n", len, ((len+7)/8)-1);
-	rhex64(dest, ((len+7)/8)-1, -1, source, len);
+void read_hex_le(uint8_t* dest, char* source, size_t len) {
+	read_hex(dest, ((len+1)/2)-1, -1, source, len);
 }
 
 bool rbit(unsigned int value, unsigned int bit) {
