@@ -35,35 +35,23 @@ int test() {
 		printf("%d %08b %d %08b\n", i, i, (int8_t)j, j);
 	}*/
 
-	BigInt* a = bi_from_int(0);
+	BigInt* a = bi_from_hex("18000000000000000");
 	BigInt* b = bi_from_int(1);
-	BigInt* c = bi_from_int(-1);
-	BigInt* d = bi_from_int(2);
-	BigInt* z = bi_from_int(0);
+			
+	bi_debug(a);
+	for (uint8_t i=0; i<3; i++) {
+		bi_mul(a, a, a);
+		bi_debug(a);
+	}
+	bi_add(a, a, b);
+	bi_debug(a);
+	bi_mul(a, a, a);
+	bi_debug(a);
+
+	/*BigInt* a = bi_from_hex("800000000000000000000000000000000000000000000000000000000000000");
+	bi_debug(a);
+	bi_shift_left(a, a, 1);
+	bi_debug(a);*/
 	
-	bi_dump(a);
-
-	bi_add(a, a, b);
-	bi_dump(a);
-	bi_sub(a, a, b);
-	bi_dump(a);
-
-	bi_sub(a, a, c);
-	bi_dump(a);
-	bi_add(a, a, c);
-	bi_dump(a);
-
-	bi_sub(a, a, b);
-	bi_dump(a);
-	bi_add(a, a, b);
-	bi_dump(a);
-
-	bi_add(a, a, c);
-	bi_dump(a);
-	bi_sub(a, a, c);
-	bi_dump(a);
-
-	printf("cmp %d\n", bi_cmp_abs(a, z));
-
 	return EXIT_SUCCESS;
 }
