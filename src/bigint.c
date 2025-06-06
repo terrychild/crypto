@@ -369,6 +369,7 @@ BigInt* bi_mul(BigInt* dest, BigInt* a, BigInt* b) {
 	for (size_t limb = 0; limb < size; limb++) {
 		dest->limbs[limb] = 0;
 	}
+	dest->neg = a->neg != b->neg;
 	
 	size_t limb = 0;
 	uint64_t mask = 1;
@@ -401,7 +402,9 @@ BigInt* bi_div(BigInt* dest, BigInt* a, BigInt* b, BigInt* r) {
 	BigInt* orig_b = bi_clone(b);
 	BigInt* temp_b = bi_clone(b);
 	BigInt* mask = bi_from_int(1);
+
 	bi_set_int(dest, 0);
+	dest->neg = a->neg != b->neg;
 
 	while (bi_cmp_abs(temp_b, r) < 0) {
 		bi_shift_left(temp_b, temp_b, 1);

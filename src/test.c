@@ -54,7 +54,7 @@ int test() {
 	bi_debug(a);*/
 
 	BigInt* a = bi_from_int(100);
-	BigInt* b = bi_from_int(10);
+	BigInt* b = bi_from_int(-10);
 	BigInt* r = bi_new(0);
 	BigInt* sum = bi_new(0);
 	BigInt* one = bi_from_int(1);
@@ -66,7 +66,7 @@ int test() {
 		bi_dump("remainder", r);
 		puts("====================");
 
-		bi_sub(b, b, one);
+		bi_add(b, b, one);
 	}
 
 	BigInt* big = bi_from_hex("a00000000000000000");
@@ -76,6 +76,18 @@ int test() {
 	bi_dump("divided by", div);
 	bi_dump("equals", sum);
 	bi_dump("remainder", r);
+
+	bi_set_int(b, 0);
+	bi_mul(sum, a, b);
+	bi_dump("100 * 0", sum);
+
+	bi_set_int(b, 10);
+	bi_mul(sum, a, b);
+	bi_dump("100 * 10", sum);
+
+	bi_set_int(b, -10);
+	bi_mul(sum, a, b);
+	bi_dump("100 * -10", sum);
 	
 	return EXIT_SUCCESS;
 }
