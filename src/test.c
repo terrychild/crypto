@@ -53,7 +53,7 @@ int test() {
 	bi_shift_left(a, a, 1);
 	bi_debug(a);*/
 
-	BigInt* a = bi_from_int(100);
+	/*BigInt* a = bi_from_int(100);
 	BigInt* b = bi_from_int(-10);
 	BigInt* r = bi_new(0);
 	BigInt* sum = bi_new(0);
@@ -87,7 +87,12 @@ int test() {
 
 	bi_set_int(b, -10);
 	bi_mul(sum, a, b);
-	bi_dump("100 * -10", sum);
+	bi_dump("100 * -10", sum);*/
+
+	BigInt* a = bi_from_int(2);
+	BigInt* b = bi_from_int(10);
+	bi_pow(a, a, b);
+	bi_dump("pow", a);
 	
 	return EXIT_SUCCESS;
 }

@@ -426,3 +426,36 @@ BigInt* bi_div(BigInt* dest, BigInt* a, BigInt* b, BigInt* r) {
 
 	return dest;
 }
+
+BigInt* bi_pow(BigInt* dest, BigInt* a, BigInt* b) {
+	BigInt* temp_a = bi_clone(a);
+	BigInt* temp_b = bi_clone(b);
+
+	copy(dest, a);
+
+	bool go = false;
+	size_t limb = temp_b->size;
+	do {
+		limb--;
+		uint64_t mask = overflow_mask >> 1;
+		while (mask) {
+			if (!go) {
+				if (temp_b->limbs[limb] & mask) {
+					go = true;
+				}
+			} else {
+				bi_mul(dest, dest, dest);
+				if (temp_b->limbs[limb] & mask) {
+					bi_mul(dest, dest, temp_a);
+				}
+			}
+			mask >>= 1;
+		}
+
+	} while (limb>0);
+
+	bi_free(temp_a);
+	bi_free(temp_b);
+
+	return dest;
+}
