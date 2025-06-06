@@ -35,7 +35,7 @@ int test() {
 		printf("%d %08b %d %08b\n", i, i, (int8_t)j, j);
 	}*/
 
-	BigInt* a = bi_from_hex("18000000000000000");
+	/*BigInt* a = bi_from_hex("18000000000000000");
 	BigInt* b = bi_from_int(1);
 			
 	bi_debug(a);
@@ -46,12 +46,36 @@ int test() {
 	bi_add(a, a, b);
 	bi_debug(a);
 	bi_mul(a, a, a);
-	bi_debug(a);
+	bi_debug(a);*/
 
 	/*BigInt* a = bi_from_hex("800000000000000000000000000000000000000000000000000000000000000");
 	bi_debug(a);
 	bi_shift_left(a, a, 1);
 	bi_debug(a);*/
+
+	BigInt* a = bi_from_int(100);
+	BigInt* b = bi_from_int(10);
+	BigInt* r = bi_new(0);
+	BigInt* sum = bi_new(0);
+	BigInt* one = bi_from_int(1);
+
+	for (int i=0; i<11; i++) {
+		bi_div(sum, a, b, r);
+		bi_dump("divide by", b);
+		bi_dump("equals", sum);
+		bi_dump("remainder", r);
+		puts("====================");
+
+		bi_sub(b, b, one);
+	}
+
+	BigInt* big = bi_from_hex("a00000000000000000");
+	BigInt* div = bi_from_hex("180000000000000000");
+	bi_div(sum, big, div, r);
+	bi_dump("start", big);
+	bi_dump("divided by", div);
+	bi_dump("equals", sum);
+	bi_dump("remainder", r);
 	
 	return EXIT_SUCCESS;
 }

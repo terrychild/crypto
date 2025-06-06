@@ -8,12 +8,12 @@
 
 uint64_t overflow_mask = 0x8000000000000000;
 
-void resize(BigInt* bi, size_t new_size) {
+static void resize(BigInt* bi, size_t new_size) {
 	bi->size = new_size;
 	bi->limbs = allocate(bi->limbs, sizeof(bi->limbs) * new_size);
 }
 
-void reduce(BigInt* bi) {
+static void reduce(BigInt* bi) {
 	size_t new_size = bi->size;
 	for (size_t i=bi->size - 1; i>0 && bi->limbs[i] == 0; i--) {
 		new_size--;
@@ -23,11 +23,11 @@ void reduce(BigInt* bi) {
 	}
 }
 
-bool is_zero(BigInt* bi) {
+static bool is_zero(BigInt* bi) {
 	return bi->size == 1 && bi->limbs[0] == 0;
 }
 
-BigInt* new(size_t size) {
+static BigInt* new(size_t size) {
 	BigInt* bi = allocate(NULL, sizeof(*bi));
 	bi->size = size==0 ? 1 : size;
 	bi->neg = false;
@@ -43,15 +43,22 @@ BigInt* bi_new(size_t size) {
 	return bi;
 }
 
-BigInt* bi_from_int(int64_t i) {
-	BigInt* bi = new(1);
+BigInt* bi_set_int(BigInt* bi, int64_t i) {
+	if (bi->size != 1) {
+		resize(bi, 1);
+	}
 	if (i>=0) {
+		bi->neg = false;
 		bi->limbs[0] = (uint64_t)i;
 	} else {
 		bi->neg = true;
 		bi->limbs[0] = (uint64_t)(0-i);
-	} 
+	}
 	return bi;
+}
+
+BigInt* bi_from_int(int64_t i) {
+	return bi_set_int(new(1), i);
 }
 
 BigInt* bi_from_hex(char* str) {
@@ -80,15 +87,24 @@ BigInt* bi_from_hex(char* str) {
 	return bi;
 }
 
-void copy(BigInt* dest, BigInt* source) {
+static void copy_limbs(BigInt* dest, BigInt* source) {
 	for (size_t limb = 0; limb < dest->size; limb++) {
 		dest->limbs[limb] = limb < source->size ? source->limbs[limb] : 0;
 	}
 }
 
+static void copy(BigInt* dest, BigInt* source) {
+	if (dest->size != source->size) {
+		resize(dest, source->size);
+	}
+	copy_limbs(dest, source);
+	dest->neg = source->neg;
+}
+
 BigInt* bi_clone(BigInt* source) {
 	BigInt* dest = new(source->size);
-	copy(dest, source);
+	copy_limbs(dest, source);
+	dest->neg = source->neg;
 	return dest;
 }
 
@@ -122,8 +138,8 @@ void bi_dump(char* str, BigInt* bi) {
 	printf("\n");
 }
 
-void bi_debug(BigInt* bi) {
-	printf("BigInt %c\n", bi->neg ? '-' : '+');
+void bi_debug(char* str, BigInt* bi) {
+	printf("%s: %c\n", str, bi->neg ? '-' : '+');
 	uint64_t* ptr = bi->limbs + bi->size;
 	while (ptr != bi->limbs) {
 		ptr--;
@@ -343,8 +359,8 @@ BigInt* bi_mul(BigInt* dest, BigInt* a, BigInt* b) {
 		return bi_mul(dest, b, a);
 	}
 
-	BigInt* tempA = bi_clone(a);
-	BigInt* tempB = bi_clone(b);
+	BigInt* temp_a = bi_clone(a);
+	BigInt* temp_b = bi_clone(b);
 
 	size_t size = a->size * 2;
 	if (dest->size < size) {
@@ -356,11 +372,11 @@ BigInt* bi_mul(BigInt* dest, BigInt* a, BigInt* b) {
 	
 	size_t limb = 0;
 	uint64_t mask = 1;
-	while (limb < tempB->size) {
-		if (tempB->limbs[limb] & mask) {
-			add(dest, dest, tempA);
+	while (limb < temp_b->size) {
+		if (temp_b->limbs[limb] & mask) {
+			add(dest, dest, temp_a);
 		}
-		bi_shift_left(tempA, tempA, 1);
+		bi_shift_left(temp_a, temp_a, 1);
 		mask <<= 1;
 		if (mask & overflow_mask) {
 			limb++;
@@ -368,9 +384,42 @@ BigInt* bi_mul(BigInt* dest, BigInt* a, BigInt* b) {
 		}
 	}
 	
-	bi_free(tempA);
-	bi_free(tempB);
+	bi_free(temp_a);
+	bi_free(temp_b);
 
 	reduce(dest);
+	return dest;
+}
+
+BigInt* bi_div(BigInt* dest, BigInt* a, BigInt* b, BigInt* r) {
+	if (is_zero(b)) {
+		puts("PANIC: Divide by zero!");
+		return dest;
+	}
+
+	copy(r, a);
+	BigInt* orig_b = bi_clone(b);
+	BigInt* temp_b = bi_clone(b);
+	BigInt* mask = bi_from_int(1);
+	bi_set_int(dest, 0);
+
+	while (bi_cmp_abs(temp_b, r) < 0) {
+		bi_shift_left(temp_b, temp_b, 1);
+		bi_shift_left(mask, mask, 1);
+	}
+	
+	while (bi_cmp_abs(r, orig_b) >= 0) {
+		if (bi_cmp_abs(r, temp_b) >= 0) {
+			add(dest, dest, mask);
+			sub(r, r, temp_b);
+		}
+		bi_shift_right(temp_b, temp_b, 1);
+		bi_shift_right(mask, mask, 1);
+	}
+
+	bi_free(orig_b);
+	bi_free(temp_b);
+	bi_free(mask);
+
 	return dest;
 }
