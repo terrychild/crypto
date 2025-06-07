@@ -13,7 +13,7 @@ static void resize(BigInt* bi, size_t new_size) {
 	bi->limbs = allocate(bi->limbs, sizeof(bi->limbs) * new_size);
 }
 
-static void reduce(BigInt* bi) {
+static void normalise(BigInt* bi) {
 	size_t new_size = bi->size;
 	for (size_t i=bi->size - 1; i>0 && bi->limbs[i] == 0; i--) {
 		new_size--;
@@ -21,6 +21,13 @@ static void reduce(BigInt* bi) {
 	if (new_size < bi->size) {
 		resize(bi, new_size);
 	}
+	size_t new_len = new_size * 63;
+	uint64_t mask = overflow_mask >> 1;
+	while (mask && !(bi->limbs[new_size-1] & mask)) {
+		new_len--;
+		mask >>= 1;
+	}
+	bi->len = new_len;
 }
 
 static bool is_zero(BigInt* bi) {
@@ -30,6 +37,7 @@ static bool is_zero(BigInt* bi) {
 static BigInt* new(size_t size) {
 	BigInt* bi = allocate(NULL, sizeof(*bi));
 	bi->size = size==0 ? 1 : size;
+	bi->len = 0;
 	bi->neg = false;
 	bi->limbs = allocate(NULL, sizeof(bi->limbs) * bi->size);
 	return bi;
@@ -54,6 +62,7 @@ BigInt* bi_set_int(BigInt* bi, int64_t i) {
 		bi->neg = true;
 		bi->limbs[0] = (uint64_t)(0-i);
 	}
+	normalise(bi);
 	return bi;
 }
 
@@ -83,7 +92,7 @@ BigInt* bi_from_hex(char* str) {
 	}
 	bi->limbs[limb] = value;
 
-	reduce(bi);
+	normalise(bi);
 	return bi;
 }
 
@@ -98,12 +107,14 @@ static void copy(BigInt* dest, BigInt* source) {
 		resize(dest, source->size);
 	}
 	copy_limbs(dest, source);
+	dest->len = source->len;
 	dest->neg = source->neg;
 }
 
 BigInt* bi_clone(BigInt* source) {
 	BigInt* dest = new(source->size);
 	copy_limbs(dest, source);
+	dest->len = source->len;
 	dest->neg = source->neg;
 	return dest;
 }
@@ -139,7 +150,7 @@ void bi_dump(char* str, BigInt* bi) {
 }
 
 void bi_debug(char* str, BigInt* bi) {
-	printf("%s: %c\n", str, bi->neg ? '-' : '+');
+	printf("%s: (%ld) %c\n", str, bi->len, bi->neg ? '-' : '+');
 	uint64_t* ptr = bi->limbs + bi->size;
 	while (ptr != bi->limbs) {
 		ptr--;
@@ -160,9 +171,9 @@ int bi_cmp(BigInt* a, BigInt* b) {
 }
 
 int bi_cmp_abs(BigInt* a, BigInt* b) {
-	if (a->size < b->size) {
+	if (a->len < b->len) {
 		return -1;
-	} else if (a->size > b->size) {
+	} else if (a->len > b->len) {
 		return 1;
 	} else {
 		for (size_t limb = a->size; limb-- > 0; ) {
@@ -181,6 +192,8 @@ BigInt* bi_shift_left(BigInt* dest, BigInt* source, size_t count) {
 		if (dest->size != 0) {
 			resize(dest, 1);
 		}
+		dest->len = 0;
+		dest->neg = false;
 		dest->limbs[0] = 0;
 		return dest;
 	}
@@ -211,6 +224,8 @@ BigInt* bi_shift_left(BigInt* dest, BigInt* source, size_t count) {
 		dest->limbs[i] = 0;
 	}
 
+	dest->len = source->len + 1;
+
 	return dest;
 }
 
@@ -222,6 +237,8 @@ BigInt* bi_shift_right(BigInt* dest, BigInt* source, size_t count) {
 		if (dest->size != 1) {
 			resize(dest, 1);
 		}
+		dest->len = 0;
+		dest->neg = false;
 		dest->limbs[0] = 0;
 		return dest;
 	}
@@ -243,6 +260,8 @@ BigInt* bi_shift_right(BigInt* dest, BigInt* source, size_t count) {
 	if (dest->size != new_size) {
 		resize(dest, new_size);
 	}
+
+	dest->len = dest->len - 1;
 
 	return dest;
 }
@@ -279,6 +298,8 @@ static void add(BigInt* dest, BigInt* a, BigInt* b) {
 		resize(dest, size+1);
 		dest->limbs[size] = 1;
 	}
+
+	normalise(dest);
 }
 
 static void sub(BigInt* dest, BigInt* a, BigInt* b) {
@@ -313,7 +334,7 @@ static void sub(BigInt* dest, BigInt* a, BigInt* b) {
 		puts("PANIC: borrow left over!");
 	}
 
-	reduce(dest);
+	normalise(dest);
 }
 
 BigInt* bi_add(BigInt* dest, BigInt* a, BigInt* b) {	
@@ -388,7 +409,7 @@ BigInt* bi_mul(BigInt* dest, BigInt* a, BigInt* b) {
 	bi_free(temp_a);
 	bi_free(temp_b);
 
-	reduce(dest);
+	normalise(dest);
 	return dest;
 }
 

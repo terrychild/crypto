@@ -6,6 +6,7 @@
 
 typedef struct {
 	size_t size;
+	size_t len;
 	uint64_t* limbs;
 	bool neg;
 } BigInt;
