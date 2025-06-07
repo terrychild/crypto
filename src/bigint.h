@@ -20,7 +20,7 @@ BigInt* bi_set_int(BigInt* bi, int64_t i);
 
 void bi_free(BigInt* bi);
 
-void bi_dump(char* str, BigInt* bi);
+char* bi_to_hex(char* str, BigInt* bi);
 void bi_debug(char* str, BigInt* bi);
 
 int bi_cmp(BigInt* a, BigInt* b);

@@ -126,27 +126,42 @@ void bi_free(BigInt* bi) {
 	}
 }
 
-void bi_dump(char* str, BigInt* bi) {
-	printf("%s: %c", str, bi->neg ? '-' : '+');
+char* bi_to_hex(char* str, BigInt* bi) {
+	size_t i = ((bi->len+3) / 4) + (bi->neg ? 1 : 0);
+	str = allocate(str, i+1);
+	if (bi->neg) {
+		str[0] = '-';
+	}
+	str[i] = 0;
+
 	char nibble = 0;
-	for (size_t limb = bi->size; limb-- > 0; ) {
-		printf(" ");
-		int shift = 60 + (limb % 4);
-		while (shift >= 0) {
-			uint64_t mask = 0xf;
-			mask <<= shift;
-			nibble += (bi->limbs[limb] & mask) >> shift;
-			printf("%01x", nibble);
-			nibble = 0;
-			shift -= 4;
-		}
+	for (size_t limb=0; limb<bi->size; limb++) {
+		int shift = limb % 4;
+		shift = shift == 0 ? shift : -4 + shift;
+
 		if (shift < 0) {
 			uint64_t mask = 0xf;
 			mask >>= -shift;
-			nibble = (bi->limbs[limb] & mask) << -shift;
+			str[--i] = get_hex_char(nibble | ((bi->limbs[limb] & mask) << -shift));
+			shift += 4;
+			nibble = 0;
+		}
+		while (shift < 60 && i>0) {
+			uint64_t mask = 0xf;
+			mask <<= shift;
+			str[--i] = get_hex_char((bi->limbs[limb] & mask) >> shift);
+			shift += 4;
+		}
+		if (shift < 63) {
+			uint64_t mask = 0xf;
+			mask = (mask << shift) & ~overflow_mask;
+			nibble = (bi->limbs[limb] & mask) >> shift;
 		}
 	}
-	printf("\n");
+	if (nibble && i>0) {
+		str[--i] = get_hex_char(nibble);
+	}
+	return str;
 }
 
 void bi_debug(char* str, BigInt* bi) {
@@ -154,7 +169,7 @@ void bi_debug(char* str, BigInt* bi) {
 	uint64_t* ptr = bi->limbs + bi->size;
 	while (ptr != bi->limbs) {
 		ptr--;
-		printf(" %01lb %016lx %063lb\n", (*ptr & overflow_mask) >> 63, *ptr & ~overflow_mask, *ptr & ~overflow_mask);
+		printf(" %01lb %063lb\n", (*ptr & overflow_mask) >> 63, *ptr & ~overflow_mask);
 	}
 }
 
