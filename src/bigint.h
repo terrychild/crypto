@@ -34,5 +34,6 @@ BigInt* bi_sub(BigInt* dest, BigInt* a, BigInt* b);
 BigInt* bi_mul(BigInt* dest, BigInt* a, BigInt* b);
 BigInt* bi_div(BigInt* dest, BigInt* a, BigInt* b, BigInt* r);
 BigInt* bi_pow(BigInt* dest, BigInt* a, BigInt* b);
+BigInt* bi_pow_mod(BigInt* dest, BigInt* a, BigInt* b, BigInt* mod);
 
 #endif

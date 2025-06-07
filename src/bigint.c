@@ -480,3 +480,40 @@ BigInt* bi_pow(BigInt* dest, BigInt* a, BigInt* b) {
 
 	return dest;
 }
+
+BigInt* bi_pow_mod(BigInt* dest, BigInt* a, BigInt* b, BigInt* mod) {
+	BigInt* temp = bi_new(0);
+	BigInt* temp_a = bi_clone(a);
+	BigInt* temp_b = bi_clone(b);
+
+	copy(dest, a);
+
+	bool go = false;
+	size_t limb = temp_b->size;
+	do {
+		limb--;
+		uint64_t mask = overflow_mask >> 1;
+		while (mask) {
+			if (!go) {
+				if (temp_b->limbs[limb] & mask) {
+					go = true;
+				}
+			} else {
+				bi_mul(dest, dest, dest);
+				bi_div(temp, dest, mod, dest);
+				if (temp_b->limbs[limb] & mask) {
+					bi_mul(dest, dest, temp_a);
+					bi_div(temp, dest, mod, dest);
+				}
+			}
+			mask >>= 1;
+		}
+
+	} while (limb>0);
+
+	bi_free(temp);
+	bi_free(temp_a);
+	bi_free(temp_b);
+
+	return dest;
+}
