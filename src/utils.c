@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <limits.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 void* allocate(void* data, size_t size) {
 	void* new_data = realloc(data, size);
@@ -21,6 +23,18 @@ int arg(int argc, char* argv[], const char* name) {
 		}
 	}
 	return -1;
+}
+
+char get_hex_char(char value) {
+	if (value < 0 || value > 15) {
+		printf("Invalid hex value %d.\n", value);
+		return 'X';
+	}
+	if (value < 10) {
+		return '0' + value;
+	} else {
+		return 'a' + value - 10;
+	}
 }
 
 char read_hex_char(char nibble) {
@@ -76,4 +90,17 @@ uint8_t rotl8(uint8_t value, unsigned int count) {
 	const unsigned int mask = CHAR_BIT * sizeof(value) - 1;
 	count &= mask;
 	return (value << count) | (value >> (-count & mask));
+}
+
+ssize_t random(uint8_t* buffer, size_t max_len) {
+	int fd = open("/dev/urandom", O_RDONLY);
+	if (fd == -1) {
+		puts("Unable to open /dev/urandom");
+		return -1;
+	}
+
+	ssize_t rv = read(fd, buffer, max_len);
+
+	close(fd);
+	return rv;
 }

@@ -3,10 +3,12 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 void* allocate(void* data, size_t size);
 int arg(int argc, char* argv[], const char* name);
 
+char get_hex_char(char value);
 char read_hex_char(char nibble);
 void read_hex_be(uint8_t* dest, char* source, size_t len);
 void read_hex_le(uint8_t* dest, char* source, size_t len);
@@ -22,5 +24,7 @@ uint8_t rotl8(uint8_t value, unsigned int count);
 #define rotl(value, count) _Generic((value),	\
 		default: rotl8	\
 	)(value, count)
+
+ssize_t random(uint8_t* buffer, size_t max_len);
 
 #endif
