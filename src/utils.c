@@ -3,8 +3,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <limits.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 void* allocate(void* data, size_t size) {
 	void* new_data = realloc(data, size);
@@ -38,6 +36,10 @@ char get_hex_char(char value) {
 }
 
 char read_hex_char(char nibble) {
+	if (nibble < '0') {
+		printf("Invalid hex char '%c'.\n", nibble);
+		return 0;
+	}
 	char value;
 	if (nibble >= 'a') {
 		value = nibble - 'a' + 10;
@@ -74,6 +76,23 @@ void read_hex_le(uint8_t* dest, char* source, size_t len) {
 	read_hex(dest, ((len+1)/2)-1, -1, source, len);
 }
 
+uint8_t read_dec_char(char digit) {
+	if (digit < '0' || digit > '9') {
+		printf("Invalid dec char '%c'.\n", digit);
+		return 0;
+	}
+	return digit - '0';
+}
+
+uint64_t read_dec(char* source, size_t len) {
+	uint64_t value = 0;
+	for (size_t i=0; i<len; i++) {
+		value *= 10;
+		value += read_dec_char(source[i]);
+	}
+	return value;
+}
+
 bool rbit(unsigned int value, unsigned int bit) {
 	return (value >> (bit)) & 1;
 }
@@ -90,17 +109,4 @@ uint8_t rotl8(uint8_t value, unsigned int count) {
 	const unsigned int mask = CHAR_BIT * sizeof(value) - 1;
 	count &= mask;
 	return (value << count) | (value >> (-count & mask));
-}
-
-ssize_t random(uint8_t* buffer, size_t max_len) {
-	int fd = open("/dev/urandom", O_RDONLY);
-	if (fd == -1) {
-		puts("Unable to open /dev/urandom");
-		return -1;
-	}
-
-	ssize_t rv = read(fd, buffer, max_len);
-
-	close(fd);
-	return rv;
 }

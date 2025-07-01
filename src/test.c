@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "utils.h"
+#include "rand.h"
 
 static void dump_hex(uint8_t* buffer, size_t len) {
 	for (size_t i=0; i<len; i++) {

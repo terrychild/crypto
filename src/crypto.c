@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "aes.h"
+#include "rand.h"
 #include "test.h"
 
 static void printUsage() {
@@ -15,14 +16,17 @@ static void printUsage() {
 	puts("                     codebook mode.");
 	puts("  {enc|dec}-aes-cbc  Encrypt or decrypt using AES in Cipher Block");
 	puts("                     Chaining mode.");
+	puts("  rand               Generate random data.");
 	//puts("  test               Run test code.");
 	puts("\nArguments");
 	puts("  --key=<key>        Encryption key encoded in hex.");
 	puts("  --iv=<key>         Initialisation Vector encoded in hex.");
-	puts("  --fin=<key>        Path to input file to encrypt/decrypt. If not");
-	puts("                     specified stdin will be used instead.");
-	puts("  --fout=<key>       Path to output file to save result. If not");
+	puts("  --fin=<path>       Path to input file. If not specified stdin");
+	puts("                     will be used instead.");
+	puts("  --fout=<path>      Path to output file to save result. If not");
 	puts("                     specified stdout will be used instead.");
+	puts("  --len=<num>        Length in decimal.");
+	puts("  --hex              Output in hexidecimal.");
 	puts("  --debug            Output debug information.");
 }
 
@@ -43,6 +47,10 @@ int main(int argc, char* argv[]) {
 	}
 	if (strcmp(argv[1], "dec-aes-cbc")==0) {
 		return aes(false, "cbc", argc, argv);
+	}
+
+	if (strcmp(argv[1], "rand")==0) {
+		return random_cmd(argc, argv);
 	}
 
 	if (strcmp(argv[1], "test")==0) {
