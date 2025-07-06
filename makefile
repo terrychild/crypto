@@ -2,7 +2,7 @@
 TARGET := crypto
 RUN_ARGS := test
 
-COMP_ARGS := -lm -Wall -Wextra -std=c23 -pedantic
+COMP_ARGS := -lm -Wall -Wextra -std=c23 -pedantic -g
 
 # dirs
 BUILD := ./build

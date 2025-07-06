@@ -2,12 +2,39 @@
 	"folders":
 	[
 		{
-			"path": "src"
+			"path": "src",
 		},
 		{
 			"name": "settings",
 			"path": ".",
-			"folder_exclude_patterns": ["*"]
+			"folder_exclude_patterns": ["*"],
+		}
+	],
+	"build_systems":
+	[
+		{
+			"name": "Build Project",
+
+			"target": "terminus_exec",
+			"cancel": "terminus_cancel_build",
+
+			"working_dir": "$project_path",
+			"cmd": ["make"],
+
+			"variants":
+			
+			[
+				{
+					"name": "run",
+					"cmd": ["make", "run"],
+				},
+				{
+					"name": "debug",
+					"target": "exec",
+					"cancel": null,
+					"shell_cmd": "if make; then kdbg -a test ./build/crypto; fi"
+				}
+			],
 		}
 	]
 }
