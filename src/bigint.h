@@ -6,13 +6,13 @@
 
 typedef struct {
 	size_t size;
-	size_t len;
 	uint64_t* limbs;
 	bool neg;
 } BigInt;
 
 BigInt* bi_new();
 void bi_free(BigInt* bi);
+void bi_normalise(BigInt* bi);
 
 BigInt* bi_clone(BigInt* source);
 
