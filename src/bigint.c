@@ -29,16 +29,6 @@ static void clear(BigInt* bi, size_t size) {
 	}
 }
 
-void bi_normalise(BigInt* bi) {
-	size_t new_size = bi->size;
-	while (new_size>1 && bi->limbs[new_size-1]==0) {
-		new_size--;
-	}
-	if (new_size < bi->size) {
-		resize(bi, new_size);
-	}
-}
-
 static size_t normal_size(BigInt* bi) {
 	size_t size = bi->size;
 	while (size>1 && bi->limbs[size-1]==0) {
@@ -51,6 +41,13 @@ static size_t max_normal_size(BigInt* a, BigInt* b) {
 	size_t as = normal_size(a);
 	size_t bs = normal_size(b);
 	return as >= bs ? as : bs;
+}
+
+void bi_normalise(BigInt* bi) {
+	size_t new_size = normal_size(bi);
+	if (new_size < bi->size) {
+		resize(bi, new_size);
+	}
 }
 
 static bool is_zero(BigInt* bi) {
@@ -472,6 +469,37 @@ BigInt* bi_div(BigInt* dest, BigInt* a, BigInt* b, BigInt* r) {
 	return dest;
 }
 
+BigInt* bi_mod(BigInt* r, BigInt* a, BigInt* b) {
+	if (is_zero(b)) {
+		puts("PANIC: Divide by zero!");
+		return r;
+	}
+
+	copy(r, a);
+	BigInt* orig_b = bi_clone(b);
+	BigInt* temp_b = bi_clone(b);
+	BigInt* mask = bi_from_int(1);
+
+	while (bi_cmp_abs(temp_b, r) < 0) {
+		bi_shift_left(temp_b, temp_b);
+		bi_shift_left(mask, mask);
+	}
+	
+	while (bi_cmp_abs(r, orig_b) >= 0) {
+		if (bi_cmp_abs(r, temp_b) >= 0) {
+			sub(r, r, temp_b);
+		}
+		bi_shift_right(temp_b, temp_b);
+		bi_shift_right(mask, mask);
+	}
+
+	bi_free(orig_b);
+	bi_free(temp_b);
+	bi_free(mask);
+
+	return r;
+}
+
 BigInt* bi_pow(BigInt* dest, BigInt* a, BigInt* b) {
 	BigInt* temp_a = bi_clone(a);
 	BigInt* temp_b = bi_clone(b);
@@ -506,7 +534,6 @@ BigInt* bi_pow(BigInt* dest, BigInt* a, BigInt* b) {
 }
 
 BigInt* bi_pow_mod(BigInt* dest, BigInt* a, BigInt* b, BigInt* mod) {
-	BigInt* temp = bi_new();
 	BigInt* temp_a = bi_clone(a);
 	BigInt* temp_b = bi_clone(b);
 
@@ -524,10 +551,10 @@ BigInt* bi_pow_mod(BigInt* dest, BigInt* a, BigInt* b, BigInt* mod) {
 				}
 			} else {
 				bi_mul(dest, dest, dest);
-				bi_div(temp, dest, mod, dest);
+				bi_mod(dest, dest, mod);
 				if (temp_b->limbs[limb] & mask) {
 					bi_mul(dest, dest, temp_a);
-					bi_div(temp, dest, mod, dest);
+					bi_mod(dest, dest, mod);
 				}
 			}
 			mask >>= 1;
@@ -535,7 +562,6 @@ BigInt* bi_pow_mod(BigInt* dest, BigInt* a, BigInt* b, BigInt* mod) {
 
 	} while (limb>0);
 
-	bi_free(temp);
 	bi_free(temp_a);
 	bi_free(temp_b);
 
