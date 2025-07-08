@@ -1,5 +1,6 @@
 build
 *.sublime-workspace
+*.er
 source
 cipher
 plain
