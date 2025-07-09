@@ -3,6 +3,12 @@
 #include "rsa.h"
 #include "bigint.h"
 
+static char* get_hex(char buffer[1024], BigInt* bi) {
+	size_t len = bi_to_hex(buffer, bi, 1023);
+	buffer[len] = '\0';
+	return buffer;
+}
+
 int test() {
 	return rsa();
 
@@ -17,7 +23,7 @@ int test() {
 	printf("comp1: %d\n", bi_cmp(a, ref1));
 	bi_div(c, a, mod, a);
 	bi_debug(a);
-	printf("comp2: %d\n", bi_cmp(a, ref2));
+	printf("comp2: %d\n", bi_cmp(a, ref2));*/
 
-	return EXIT_SUCCESS;*/
+	//return EXIT_SUCCESS;
 }

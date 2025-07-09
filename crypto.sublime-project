@@ -32,9 +32,15 @@
 					"name": "debug",
 					"target": "exec",
 					"cancel": null,
-					"shell_cmd": "if make; then kdbg -a test ./build/crypto; fi"
+					"shell_cmd": "make && kdbg -a test ./build/crypto"
+				},
+				{
+					"name": "profile",
+					"target": "exec",
+					"cancel": null,
+					"shell_cmd": "make && gprofng collect app -O profile.er ./build/crypto test && gprofng display text -metrics name:i.%totalcpu:e.%totalcpu -limit 10 -functions profile.er"
 				}
-			],
+			]
 		}
 	]
 }

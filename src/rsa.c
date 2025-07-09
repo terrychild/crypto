@@ -38,7 +38,7 @@ int rsa() {
 	/*for (int i=1; i<16; i++) {
 		BigInt* message_in = bi_from_int(i);
 		BigInt* cipher = bi_new();
-		BigInt* message_ou = bi_new();
+		BigInt* message_out = bi_new();
 
 		bi_pow_mod(cipher, message_in, public_key, mod);
 		bi_pow_mod(message_out, cipher, private_key, mod);
