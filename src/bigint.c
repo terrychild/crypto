@@ -285,10 +285,10 @@ BigInt* bi_shift_left(BigInt* dest, BigInt* source) {
 		ensure(dest, size);
 	}
 
-	for (size_t limb=size; limb-- > 0; ) {
-		bool carry = limb>0 && (source->limbs[limb-1] & left_bit_mask);
-		dest->limbs[limb] = (source->limbs[limb] << 1) + (carry ? 1 : 0);
+	for (size_t limb=size; limb-- > 1; ) {
+		dest->limbs[limb] = (source->limbs[limb] << 1) | (source->limbs[limb-1] >> 63);
 	}
+	dest->limbs[0] = (source->limbs[0] << 1);
 
 	dest->len = source->len + 1;
 	dest->neg = source->neg;
@@ -302,18 +302,18 @@ BigInt* bi_shift_right(BigInt* dest, BigInt* source) {
 		return dest;
 	}
 
-	bool final_carry = false;
+	uint64_t final_carry = 0;
 	size_t size = normal_size(source);
 	if (size > 1 && source->limbs[size-1] == 1) {
-		final_carry = true;
+		final_carry = left_bit_mask;
 		size--;
 	}
 	ensure(dest, size);
 
-	for (size_t limb=0; limb < size; limb++) {
-		bool carry = limb+1<size ? source->limbs[limb+1] & 0x1 : final_carry;
-		dest->limbs[limb] = (source->limbs[limb] >> 1) + (carry ? left_bit_mask : 0);
+	for (size_t limb=0; limb < size-1; limb++) {
+		dest->limbs[limb] = (source->limbs[limb] >> 1) | source->limbs[limb+1] << 63;
 	}
+	dest->limbs[size-1] = (source->limbs[size-1] >> 1) | final_carry;
 
 	dest->len = source->len - 1;
 	dest->neg = source->neg;
