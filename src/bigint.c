@@ -7,13 +7,18 @@
 
 static uint64_t left_bit_mask = 0x8000000000000000;
 
-static void resize(BigInt* bi, size_t new_size) {
-	bi->size = new_size;
+static void resize(BigInt* bi, size_t new_size, bool zero_new) {
 	bi->limbs = allocate(bi->limbs, sizeof(bi->limbs) * new_size);
+	if (zero_new) {
+		for (size_t limb = bi->size; limb < new_size; limb++) {
+			bi->limbs[limb] = 0;
+		}
+	}
+	bi->size = new_size;
 }
 static void ensure(BigInt* bi, size_t size) {
 	if (bi->size < size) {
-		resize(bi, size);
+		resize(bi, size, true);
 	} else if (bi->size > size) {
 		for (size_t limb = size; limb < bi->size; limb++) {
 			bi->limbs[limb] = 0;
@@ -22,7 +27,7 @@ static void ensure(BigInt* bi, size_t size) {
 }
 static void clear(BigInt* bi, size_t size) {
 	if (bi->size < size) {
-		resize(bi, size);
+		resize(bi, size, false);
 	}
 	for (size_t limb = 0; limb < bi->size; limb++) {
 		bi->limbs[limb] = 0;
@@ -39,21 +44,21 @@ static void update_len(BigInt* bi) {
 	bi->len = 0;
 }
 
-static size_t normal_size(BigInt* bi) {
-	size_t s = (bi->len + 63) / 64;
+static size_t normal_size(size_t len) {
+	size_t s = (len + 63) / 64;
 	return s ? s : 1;
 }
 
 static size_t max_normal_size(BigInt* a, BigInt* b) {
-	size_t as = normal_size(a);
-	size_t bs = normal_size(b);
+	size_t as = normal_size(a->len);
+	size_t bs = normal_size(b->len);
 	return as >= bs ? as : bs;
 }
 
 void bi_normalise(BigInt* bi) {
-	size_t new_size = normal_size(bi);
+	size_t new_size = normal_size(bi->len);
 	if (new_size < bi->size) {
-		resize(bi, new_size);
+		resize(bi, new_size, false);
 	}
 }
 
@@ -104,7 +109,7 @@ static void copy_limbs(BigInt* dest, BigInt* source) {
 }
 static void copy(BigInt* dest, BigInt* source) {
 	if (dest->size < source->size) {
-		resize(dest, source->size);
+		resize(dest, source->size, false);
 	}
 	copy_limbs(dest, source);
 	dest->len = source->len;
@@ -259,7 +264,7 @@ int bi_cmp_abs(BigInt* a, BigInt* b) {
 	} else if (a->len > b->len) {
 		return 1;
 	} else {
-		size_t limb = normal_size(a);
+		size_t limb = normal_size(a->len);
 		while (limb-- > 0) {
 			if (a->limbs[limb] < b->limbs[limb]) {
 				return -1;
@@ -271,26 +276,37 @@ int bi_cmp_abs(BigInt* a, BigInt* b) {
 	}
 }
 
-BigInt* bi_shift_left(BigInt* dest, BigInt* source) {
+BigInt* bi_shift_left(BigInt* dest, BigInt* source, size_t count) {
 	if (is_zero(source)) {
 		make_zero(dest);
 		return dest;
 	}
 
-	size_t size = normal_size(source);
-	if (source->limbs[size-1] & left_bit_mask) {
-		ensure(dest, size+1);
-		dest->limbs[size] = 1;
+	size_t move = count / 64;
+	size_t shift = count % 64;
+	size_t size = normal_size(source->len + count);
+		
+	ensure(dest, size);
+
+	size_t limb=size;
+	if (shift) {
+		while (limb-- > move + 1) {
+			dest->limbs[limb] = (source->limbs[limb-move] << shift) | (source->limbs[limb-move-1] >> (64 - shift));
+		}
+		dest->limbs[limb] = (source->limbs[limb-move] << shift);		
 	} else {
-		ensure(dest, size);
+		while (limb-- > move + 1) {
+			dest->limbs[limb] = source->limbs[limb-move];
+		}
+		dest->limbs[limb] = source->limbs[limb-move];
+	}
+	if (move) {
+		while (limb-- > 0) {
+			dest->limbs[limb] = 0;
+		}
 	}
 
-	for (size_t limb=size; limb-- > 1; ) {
-		dest->limbs[limb] = (source->limbs[limb] << 1) | (source->limbs[limb-1] >> 63);
-	}
-	dest->limbs[0] = (source->limbs[0] << 1);
-
-	dest->len = source->len + 1;
+	dest->len = source->len + count;
 	dest->neg = source->neg;
 
 	return dest;
@@ -303,7 +319,7 @@ BigInt* bi_shift_right(BigInt* dest, BigInt* source) {
 	}
 
 	uint64_t final_carry = 0;
-	size_t size = normal_size(source);
+	size_t size = normal_size(source->len);
 	if (size > 1 && source->limbs[size-1] == 1) {
 		final_carry = left_bit_mask;
 		size--;
@@ -345,7 +361,7 @@ static void add(BigInt* dest, BigInt* a, BigInt* b) {
 
 	if (carry) {
 		if (dest->size < size+1) {
-			resize(dest, size+1);
+			resize(dest, size+1, false);
 		}
 		dest->limbs[size] = 1;
 	}
@@ -426,16 +442,19 @@ BigInt* bi_mul(BigInt* dest, BigInt* a, BigInt* b) {
 	BigInt* temp_a = bi_clone(a);
 	BigInt* temp_b = bi_clone(b);
 
-	clear(dest, ((a->len*2) + 63) / 64);
+	clear(dest, normal_size(a->len*2));
 	dest->neg = a->neg != b->neg;
 
 	size_t limb = 0;
 	uint64_t mask = 1;
+	size_t shift = 0;
 	while (limb < temp_b->size) {
 		if (temp_b->limbs[limb] & mask) {
+			bi_shift_left(temp_a, temp_a, shift);
+			shift = 0;
 			add(dest, dest, temp_a);
 		}
-		bi_shift_left(temp_a, temp_a);
+		shift++;
 		mask <<= 1;
 		if (!mask) {
 			limb++;
@@ -463,10 +482,16 @@ BigInt* bi_div(BigInt* dest, BigInt* a, BigInt* b, BigInt* r) {
 	bi_set_int(dest, 0);
 	dest->neg = a->neg != b->neg;
 
-	while (bi_cmp_abs(temp_b, r) < 0) {
-		bi_shift_left(temp_b, temp_b);
-		bi_shift_left(mask, mask);
+	size_t shift = 0;
+	if (r->len > temp_b->len) {
+		shift = r->len - b->len;	
 	}
+	bi_shift_left(temp_b, temp_b, shift);
+	if (bi_cmp_abs(temp_b, r) < 0) {
+		bi_shift_left(temp_b, temp_b, 1);
+		shift++;
+	}
+	bi_shift_left(mask, mask, shift);
 	
 	while (bi_cmp_abs(r, orig_b) >= 0) {
 		if (bi_cmp_abs(r, temp_b) >= 0) {
@@ -495,10 +520,16 @@ BigInt* bi_mod(BigInt* r, BigInt* a, BigInt* b) {
 	BigInt* temp_b = bi_clone(b);
 	BigInt* mask = bi_from_int(1);
 
-	while (bi_cmp_abs(temp_b, r) < 0) {
-		bi_shift_left(temp_b, temp_b);
-		bi_shift_left(mask, mask);
+	size_t shift = 0;
+	if (r->len > temp_b->len) {
+		shift = r->len - b->len;	
 	}
+	bi_shift_left(temp_b, temp_b, shift);
+	if (bi_cmp_abs(temp_b, r) < 0) {
+		bi_shift_left(temp_b, temp_b, 1);
+		shift++;
+	}
+	bi_shift_left(mask, mask, shift);
 	
 	while (bi_cmp_abs(r, orig_b) >= 0) {
 		if (bi_cmp_abs(r, temp_b) >= 0) {
@@ -584,7 +615,7 @@ BigInt* bi_pow_mod(BigInt* dest, BigInt* a, BigInt* b, BigInt* mod) {
 }
 
 void bi_debug(BigInt* bi) {
-	printf("%c %lu %lu/%lu\n", bi->neg ? '-' : '+', bi->len, normal_size(bi), bi->size);
+	printf("%c %lu %lu/%lu\n", bi->neg ? '-' : '+', bi->len, normal_size(bi->len), bi->size);
 	for (size_t limb = bi->size; limb-- > 0; ) {
 		printf("  %016lx %064lb\n", bi->limbs[limb], bi->limbs[limb]);
 	}

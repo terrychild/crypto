@@ -25,5 +25,12 @@ int test() {
 	bi_debug(a);
 	printf("comp2: %d\n", bi_cmp(a, ref2));*/
 
-	//return EXIT_SUCCESS;
+	/*BigInt* a = bi_from_hex("1");
+	bi_debug(a);
+	for (int i=1; i<8; i++) {
+		bi_shift_left(a, a, 65);
+		bi_debug(a);
+	}
+
+	return EXIT_SUCCESS;*/
 }

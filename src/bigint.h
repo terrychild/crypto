@@ -31,7 +31,7 @@ size_t bi_to_char(char* out, BigInt* bi, size_t maxlen);
 int bi_cmp(BigInt* a, BigInt* b);
 int bi_cmp_abs(BigInt* a, BigInt* b);
 
-BigInt* bi_shift_left(BigInt* dest, BigInt* source);
+BigInt* bi_shift_left(BigInt* dest, BigInt* source, size_t count);
 BigInt* bi_shift_right(BigInt* dest, BigInt* source);
 
 BigInt* bi_add(BigInt* dest, BigInt* a, BigInt* b);
