@@ -25,10 +25,10 @@ int test() {
 	bi_debug(a);
 	printf("comp2: %d\n", bi_cmp(a, ref2));*/
 
-	/*BigInt* a = bi_from_hex("1");
+	/*BigInt* a = bi_from_hex("3c0000000000000000000000000000000");
 	bi_debug(a);
-	for (int i=1; i<8; i++) {
-		bi_shift_left(a, a, 65);
+	for (int i=1; i<4; i++) {
+		bi_shift_right(a, a, 125);
 		bi_debug(a);
 	}
 

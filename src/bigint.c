@@ -7,28 +7,33 @@
 
 static uint64_t left_bit_mask = 0x8000000000000000;
 
-static void resize(BigInt* bi, size_t new_size, bool zero_new) {
-	bi->limbs = allocate(bi->limbs, sizeof(bi->limbs) * new_size);
-	if (zero_new) {
-		for (size_t limb = bi->size; limb < new_size; limb++) {
+static void shrink(BigInt* bi, size_t new_size) {
+	if (bi->size > new_size) {
+		bi->limbs = allocate(bi->limbs, sizeof(bi->limbs) * new_size);
+		bi->size = new_size;
+	}
+}
+static void grow(BigInt* bi, size_t new_size) {
+	if (bi->size < new_size) {
+		bi->limbs = allocate(bi->limbs, sizeof(bi->limbs) * new_size);
+		bi->size = new_size;
+	}
+}
+static void ensure(BigInt* bi, size_t new_size) {
+	size_t original_size = bi->size;
+	grow(bi, new_size);
+	if (original_size < new_size) {
+		for (size_t limb = original_size; limb < new_size; limb++) {
+			bi->limbs[limb] = 0;
+		}
+	} else if (original_size > new_size) {
+		for (size_t limb = new_size; limb < original_size; limb++) {
 			bi->limbs[limb] = 0;
 		}
 	}
-	bi->size = new_size;
 }
-static void ensure(BigInt* bi, size_t size) {
-	if (bi->size < size) {
-		resize(bi, size, true);
-	} else if (bi->size > size) {
-		for (size_t limb = size; limb < bi->size; limb++) {
-			bi->limbs[limb] = 0;
-		}
-	}
-}
-static void clear(BigInt* bi, size_t size) {
-	if (bi->size < size) {
-		resize(bi, size, false);
-	}
+static void clear(BigInt* bi, size_t new_size) {
+	grow(bi, new_size);
 	for (size_t limb = 0; limb < bi->size; limb++) {
 		bi->limbs[limb] = 0;
 	}
@@ -56,10 +61,7 @@ static size_t max_normal_size(BigInt* a, BigInt* b) {
 }
 
 void bi_normalise(BigInt* bi) {
-	size_t new_size = normal_size(bi->len);
-	if (new_size < bi->size) {
-		resize(bi, new_size, false);
-	}
+	shrink(bi, normal_size(bi->len));
 }
 
 static bool is_zero(BigInt* bi) {
@@ -108,9 +110,7 @@ static void copy_limbs(BigInt* dest, BigInt* source) {
 	}
 }
 static void copy(BigInt* dest, BigInt* source) {
-	if (dest->size < source->size) {
-		resize(dest, source->size, false);
-	}
+	grow(dest, source->size);
 	copy_limbs(dest, source);
 	dest->len = source->len;
 	dest->neg = source->neg;
@@ -284,21 +284,22 @@ BigInt* bi_shift_left(BigInt* dest, BigInt* source, size_t count) {
 
 	size_t move = count / 64;
 	size_t shift = count % 64;
+	size_t unshift = 64 - shift;
 	size_t size = normal_size(source->len + count);
 		
 	ensure(dest, size);
 
-	size_t limb=size;
+	size_t limb = size;
 	if (shift) {
 		while (limb-- > move + 1) {
-			dest->limbs[limb] = (source->limbs[limb-move] << shift) | (source->limbs[limb-move-1] >> (64 - shift));
+			dest->limbs[limb] = (source->limbs[limb-move] << shift) | (source->limbs[limb-move-1] >> unshift);
 		}
 		dest->limbs[limb] = (source->limbs[limb-move] << shift);		
 	} else {
-		while (limb-- > move + 1) {
+		while (limb > move) {
+			limb--;
 			dest->limbs[limb] = source->limbs[limb-move];
 		}
-		dest->limbs[limb] = source->limbs[limb-move];
 	}
 	if (move) {
 		while (limb-- > 0) {
@@ -312,26 +313,43 @@ BigInt* bi_shift_left(BigInt* dest, BigInt* source, size_t count) {
 	return dest;
 }
 
-BigInt* bi_shift_right(BigInt* dest, BigInt* source) {
-	if (is_zero(source)) {
+BigInt* bi_shift_right(BigInt* dest, BigInt* source, size_t count) {
+	if (source->len <= count) {
 		make_zero(dest);
 		return dest;
 	}
 
-	uint64_t final_carry = 0;
-	size_t size = normal_size(source->len);
-	if (size > 1 && source->limbs[size-1] == 1) {
-		final_carry = left_bit_mask;
-		size--;
-	}
-	ensure(dest, size);
+	size_t move = count / 64;
+	size_t shift = count % 64;
+	size_t unshift = 64 - shift;
+	size_t size = normal_size(source->len - count);
+		
+	grow(dest, size);
 
-	for (size_t limb=0; limb < size-1; limb++) {
-		dest->limbs[limb] = (source->limbs[limb] >> 1) | source->limbs[limb+1] << 63;
+	size_t limb = 0;
+	if (shift) {
+		while (limb < size-1) {
+			dest->limbs[limb] = (source->limbs[limb+move] >> shift) | (source->limbs[limb+move+1] << unshift);
+			limb++;
+		}
+		if (limb+move+1 < source->size) {
+			dest->limbs[limb] = (source->limbs[limb+move] >> shift) | (source->limbs[limb+move+1] << unshift);
+		} else {
+			dest->limbs[limb] = (source->limbs[limb+move] >> shift);
+		}
+		limb++;
+	} else {
+		while (limb < size) {
+			dest->limbs[limb] = source->limbs[limb+move];
+			limb++;
+		}
 	}
-	dest->limbs[size-1] = (source->limbs[size-1] >> 1) | final_carry;
+	while (limb < dest->size) {
+		dest->limbs[limb] = 0;
+		limb++;
+	}
 
-	dest->len = source->len - 1;
+	dest->len = source->len - count;
 	dest->neg = source->neg;
 	
 	return dest;
@@ -360,9 +378,7 @@ static void add(BigInt* dest, BigInt* a, BigInt* b) {
 	}
 
 	if (carry) {
-		if (dest->size < size+1) {
-			resize(dest, size+1, false);
-		}
+		grow(dest, size+1);
 		dest->limbs[size] = 1;
 	}
 	update_len(dest);
@@ -498,8 +514,13 @@ BigInt* bi_div(BigInt* dest, BigInt* a, BigInt* b, BigInt* r) {
 			add(dest, dest, mask);
 			sub(r, r, temp_b);
 		}
-		bi_shift_right(temp_b, temp_b);
-		bi_shift_right(mask, mask);
+		shift = 1;
+		if (temp_b->len > r->len) {
+			shift = temp_b->len - r->len;
+			printf("%lu\n", shift);
+		}
+		bi_shift_right(temp_b, temp_b, shift);
+		bi_shift_right(mask, mask, shift);
 	}
 
 	bi_free(orig_b);
@@ -535,10 +556,14 @@ BigInt* bi_mod(BigInt* r, BigInt* a, BigInt* b) {
 		if (bi_cmp_abs(r, temp_b) >= 0) {
 			sub(r, r, temp_b);
 		}
-		bi_shift_right(temp_b, temp_b);
-		bi_shift_right(mask, mask);
+		shift = 1;
+		if (temp_b->len > r->len) {
+			shift = temp_b->len - r->len;
+		}
+		bi_shift_right(temp_b, temp_b, shift);
+		bi_shift_right(mask, mask, shift);
 	}
-
+	
 	bi_free(orig_b);
 	bi_free(temp_b);
 	bi_free(mask);

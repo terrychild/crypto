@@ -32,7 +32,7 @@ int bi_cmp(BigInt* a, BigInt* b);
 int bi_cmp_abs(BigInt* a, BigInt* b);
 
 BigInt* bi_shift_left(BigInt* dest, BigInt* source, size_t count);
-BigInt* bi_shift_right(BigInt* dest, BigInt* source);
+BigInt* bi_shift_right(BigInt* dest, BigInt* source, size_t count);
 
 BigInt* bi_add(BigInt* dest, BigInt* a, BigInt* b);
 BigInt* bi_sub(BigInt* dest, BigInt* a, BigInt* b);
